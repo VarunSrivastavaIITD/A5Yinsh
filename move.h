@@ -6,13 +6,13 @@
 
 using namespace std;
 
-enum Mode { P,
+enum class Mode_M { P,
             S };
 
 class Move {
   public:
     // typedefs
-    typedef std::pair<int, int> Coordinate;
+    typedef pair<int, int> Coordinate;
 
     struct MarkerRow {
         Coordinate start;
@@ -21,9 +21,9 @@ class Move {
     };
 
     // member variables
-    Mode mode;
-    std::list<MarkerRow> initial_removal;
-    std::list<MarkerRow> final_removal;
+    Mode_M mode;
+    list<MarkerRow> initial_removal;
+    list<MarkerRow> final_removal;
     Coordinate placing_pos;
     Coordinate initial_pos;
     Coordinate final_pos;

@@ -176,3 +176,94 @@ string output_parse(Move m)
     }
     return s;
 }
+
+State remove_some_markers(State state, Coordinate start, Coordinate end)
+{
+
+}
+
+State perform_move (State state, Move move, int M)
+{
+    State newstate = state;
+
+    auto delete_from_set = [](decltype(newstate.black_markers) &s, const decltype(newstate.black_markers)::value_type &e) 
+    {
+        auto search = s.find(e);
+        if (search != s.end())
+            s.erase(search);
+    };
+
+    auto update_from_map = [](decltype(newstate.board_map) &s, const decltype(newstate.board_map)::key_type &e, const decltype(newstate.board_map)::mapped_type &f) 
+    {
+        auto search = s.find(e);
+        if (search != s.end())
+            s[e] = f;
+    };
+
+    decltype(state.board_map)::mapped_type ring;
+    decltype(state.board_map)::mapped_type marker;
+    auto rings = std::ref(newstate.white_rings);
+    auto otherrings = std::ref(newstate.black_rings);
+    auto markers = std::ref(newstate.white_markers);
+    auto othermarkers = std::ref(newstate.black_markers);
+
+    if (state.player == WHITE)
+    {
+        marker = WHITE_MARKER;
+        ring = WHITE_RING;
+        markers = std::ref(newstate.white_markers);
+        othermarkers = std::ref(newstate.black_markers);
+        rings = std::ref(newstate.white_rings);
+        otherrings = std::ref(newstate.black_rings);
+    } 
+    else 
+    {
+        marker = BLACK_MARKER;
+        ring = BLACK_RING;
+        markers = std::ref(newstate.black_markers);
+        othermarkers = std::ref(newstate.white_markers);
+        rings = std::ref(newstate.black_rings);
+        otherrings = std::ref(newstate.white_rings);
+    }
+
+    if(move.mode == Mode_M::P)
+    {
+        //check if board Coordinate exists
+        update_from_map(newstate.board_map, move.placing_pos, ring);
+        rings.get().insert(move.placing_pos);
+        if (rings.get().size() == M && otherrings.get().size() == M) 
+        {
+            newstate.mode = Mode_S::S;
+        }
+        return newstate;
+    } 
+    else
+    {
+        while(move.initial_removal.size()!=0)
+        {
+            newstate = remove_some_markers(newstate, move.initial_removal.front().start, move.initial_removal.front().end);
+            // s += "X ";
+            // s += to_string(m.initial_removal.front().ring.first);
+            // s += " ";
+            // s += to_string(m.initial_removal.front().ring.second);
+            // s += " ";
+            delete_from_set(rings.get(), move.initial_removal.front().ring);
+            move.initial_removal.pop_front();
+        }  
+    }
+    
+}
+
+int main()
+{
+    string s = "RS 1 2 RE 3 4 X 5 6 RS 1 2 RE 3 4 X 5 6 S 1 2 M 3 4 RS 1 2 RE 3 4 X 5 6 RS 1 2 RE 3 4 X 5 6";
+    Move m = input_parse(s);
+    string t = output_parse(m);
+    cout<<s<<endl;
+    cout<<t<<endl;
+    if(t==s)
+    {
+        cout<<"i/p o/p done";
+    }
+    return 0;
+}

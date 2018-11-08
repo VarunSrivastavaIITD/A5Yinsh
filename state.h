@@ -10,12 +10,12 @@ using namespace std;
 
 enum Player { BLACK, WHITE };
 enum Values { EMPTY, WHITE_RING, BLACK_RING, WHITE_MARKER, BLACK_MARKER };
-enum Mode { P, S };
+enum class Mode_S { P, S };
 
 class State
 {
 public:
-  Mode mode;
+  Mode_S mode;
   Player player;
   unordered_map<pair<int, int>, Values, boost::hash<pair<int, int>>> board_map;
   unordered_set<pair<int, int>, boost::hash<pair<int, int>>> black_rings;
