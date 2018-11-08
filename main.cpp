@@ -185,6 +185,7 @@ State remove_some_markers(State state, Coordinate start, Coordinate end)
 State remove_toggle_combiined(Coordinate p2, Coordinate p3, State state, int both_exclusive) 
 {
     State newstate = state;
+
     auto flip = [](decltype(newstate.black_markers) &s, decltype(newstate.black_markers) &t, const decltype(newstate.black_markers)::value_type &e) 
     {
         auto search = s.find(e);
@@ -193,32 +194,48 @@ State remove_toggle_combiined(Coordinate p2, Coordinate p3, State state, int bot
         t.insert(e);
     };
 
+    auto delete_from_set = [](decltype(newstate.black_markers) &s, const decltype(newstate.black_markers)::value_type &e) 
+    {
+        auto search = s.find(e);
+        if (search != s.end())
+            s.erase(search);
+    };
+
     if (p2.first == p3.first) 
     {
         if (p3.second > p2.second) 
         {
             for (int i = p2.second + both_exclusive; i <= p3.second - both_exclusive; i++) 
             {
-                if(both_exclusive == 1)
+                auto search = newstate.board_map.find(make_pair(p2.first, i));
+                if(search != newstate.board_map.end())
                 {
-                    auto search = newstate.board_map.find(make_pair(p2.first, i));
-                    if(search != newstate.board_map.end())
+                    if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) 
                     {
-                        if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) 
-                        {
+                        if(both_exclusive == 1)
+                        {      
                             newstate.board_map[make_pair(p2.first, i)] = BLACK_MARKER;
                             flip(newstate.white_markers, newstate.black_markers, make_pair(p2.first, i));
                         } 
-                        else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) 
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
+                            delete_from_set(newstate.white_markers, make_pair(p2.first, i));
+                        }
+                    }
+                    else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) 
+                    {
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(p2.first, i)] = WHITE_MARKER;
                             flip(newstate.black_markers, newstate.white_markers, make_pair(p2.first, i));
                         }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
+                            delete_from_set(newstate.black_markers, make_pair(p2.first, i));
+                        }
                     }
-                }
-                else if(both_exclusive == 0)
-                {
-
                 }
             }
         }
@@ -227,26 +244,35 @@ State remove_toggle_combiined(Coordinate p2, Coordinate p3, State state, int bot
         {
             for (int i = p2.second - both_exclusive; i >= p3.second + both_exclusive; i--) 
             {
-                if(both_exclusive == 1)
+                auto search = newstate.board_map.find(make_pair(p2.first, i));
+                if(search != newstate.board_map.end())
                 {
-                    auto search = newstate.board_map.find(make_pair(p2.first, i));
-                    if(search != newstate.board_map.end())
+                    if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) 
                     {
-                        if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) 
-                        {
+                        if(both_exclusive == 1)
+                        {      
                             newstate.board_map[make_pair(p2.first, i)] = BLACK_MARKER;
                             flip(newstate.white_markers, newstate.black_markers, make_pair(p2.first, i));
                         } 
-                        else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) 
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
+                            delete_from_set(newstate.white_markers, make_pair(p2.first, i));
+                        }
+                    }
+                    else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) 
+                    {
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(p2.first, i)] = WHITE_MARKER;
                             flip(newstate.black_markers, newstate.white_markers, make_pair(p2.first, i));
                         }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
+                            delete_from_set(newstate.black_markers, make_pair(p2.first, i));
+                        }
                     }
-                }
-                else if(both_exclusive == 0)
-                {
-
                 }
             }
         }
@@ -258,83 +284,113 @@ State remove_toggle_combiined(Coordinate p2, Coordinate p3, State state, int bot
         {
             for (int i = p2.first + both_exclusive; i <= p3.first - both_exclusive; i++) 
             {
-                if(both_exclusive == 1)
+                
+                auto search = newstate.board_map.find(make_pair(i, p2.second));
+                if(search != newstate.board_map.end())
                 {
-                    auto search = newstate.board_map.find(make_pair(i, p2.second));
-                    if(search != newstate.board_map.end())
+                    if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) 
                     {
-                        if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) 
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, p2.second)] = BLACK_MARKER;
                             flip(newstate.white_markers, newstate.black_markers, make_pair(i, p2.second));
-                        } 
-                        else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) 
+                        }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
+                            delete_from_set(newstate.white_markers, make_pair(i, p2.second));
+                        }
+                    } 
+                    else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) 
+                    {
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, p2.second)] = WHITE_MARKER;
                             flip(newstate.black_markers, newstate.white_markers, make_pair(i, p2.second));
                         }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
+                            delete_from_set(newstate.black_markers, make_pair(i, p2.second));
+                        }
                     }
-                }
-                else if(both_exclusive == 0)
-                {
-
                 }
             }
         } 
-        else {
+        else 
+        {
             for (int i = p2.first - both_exclusive; i >= p3.first + both_exclusive; i--) 
             {
-                if(both_exclusive == 1)
+                auto search = newstate.board_map.find(make_pair(i, p2.second));
+                if(search != newstate.board_map.end())
                 {
-                    auto search = newstate.board_map.find(make_pair(i, p2.second));
-                    if(search != newstate.board_map.end())
+                    if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) 
                     {
-                        if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) 
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, p2.second)] = BLACK_MARKER;
                             flip(newstate.white_markers, newstate.black_markers, make_pair(i, p2.second));
-                        } 
-                        else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) 
+                        }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
+                            delete_from_set(newstate.white_markers, make_pair(i, p2.second));
+                        }
+                    } 
+                    else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) 
+                    {
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, p2.second)] = WHITE_MARKER;
                             flip(newstate.black_markers, newstate.white_markers, make_pair(i, p2.second));
                         }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
+                            delete_from_set(newstate.black_markers, make_pair(i, p2.second));
+                        }
                     }
-                }
-                else if(both_exclusive == 0)
-                {
-
                 }
             }
         }
     }
     
+    //check for difference
     else 
     {
         if (p3.first > p2.first) 
         {
             for (int i = p2.first + both_exclusive, j = p2.second + both_exclusive; i <= p3.first - both_exclusive; i++, j++) 
             {
-                if(both_exclusive == 1)
+                auto search = newstate.board_map.find(make_pair(i, j));
+                if(search != newstate.board_map.end())
                 {
-                    auto search = newstate.board_map.find(make_pair(i, j));
-                    if(search != newstate.board_map.end())
+                    if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) 
                     {
-                        if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) 
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, j)] = BLACK_MARKER;
                             flip(newstate.white_markers, newstate.black_markers, make_pair(i, j));
                         }
-                        else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) 
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, j)] = EMPTY;
+                            delete_from_set(newstate.white_markers, make_pair(i, j));
+                        }
+                    }
+                    else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) 
+                    {
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, j)] = WHITE_MARKER;
                             flip(newstate.black_markers, newstate.white_markers, make_pair(i, j));
                         }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, j)] = EMPTY;
+                            delete_from_set(newstate.black_markers, make_pair(i, j));
+                        }
                     }
-                }
-                else if(both_exclusive == 0)
-                {
-
                 }
             }
         } 
@@ -342,26 +398,35 @@ State remove_toggle_combiined(Coordinate p2, Coordinate p3, State state, int bot
         {
             for (int i = p2.first - both_exclusive, j = p2.second - both_exclusive; i >= p3.first + both_exclusive; i--, j--) 
             {
-                if(both_exclusive == 1)
+                auto search = newstate.board_map.find(make_pair(i, j));
+                if(search != newstate.board_map.end())
                 {
-                    auto search = newstate.board_map.find(make_pair(i, j));
-                    if(search != newstate.board_map.end())
+                    if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) 
                     {
-                        if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) 
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, j)] = BLACK_MARKER;
                             flip(newstate.white_markers, newstate.black_markers, make_pair(i, j));
                         }
-                        else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) 
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, j)] = EMPTY;
+                            delete_from_set(newstate.white_markers, make_pair(i, j));
+                        }
+                    }
+                    else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) 
+                    {
+                        if(both_exclusive == 1)
                         {
                             newstate.board_map[make_pair(i, j)] = WHITE_MARKER;
                             flip(newstate.black_markers, newstate.white_markers, make_pair(i, j));
                         }
+                        else if(both_exclusive == 0)
+                        {
+                            newstate.board_map[make_pair(i, j)] = EMPTY;
+                            delete_from_set(newstate.black_markers, make_pair(i, j));
+                        }
                     }
-                }
-                else if(both_exclusive == 0)
-                {
-
                 }
             }
         }
@@ -369,6 +434,10 @@ State remove_toggle_combiined(Coordinate p2, Coordinate p3, State state, int bot
     return newstate;
 }
 
+Move minimax (State state)
+{
+    
+}
 State perform_move (State state, Move move, int M)
 {
     State newstate = state;
@@ -446,7 +515,7 @@ State perform_move (State state, Move move, int M)
             delete_from_set(rings.get(), move.final_removal.front().ring);
             move.final_removal.pop_front();
         }  
-        
+
         return newstate;
     }
     return newstate;
