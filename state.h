@@ -1,10 +1,10 @@
 #ifndef STATE_H
 #define STATE_H
 
-#include <boost/functional/hash.hpp>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
+#include <unordered_set>
+#include <boost/functional/hash.hpp>
 
 using namespace std;
 
@@ -12,7 +12,8 @@ enum Player { BLACK, WHITE };
 enum Values { EMPTY, WHITE_RING, BLACK_RING, WHITE_MARKER, BLACK_MARKER };
 enum class Mode_S { P, S };
 
-class State {
+class State
+{
 public:
   Mode_S mode;
   Player player;
@@ -25,16 +26,6 @@ public:
   State();
   static pair<int, int> hex_to_ycoord(pair<size_t, size_t>);
   static pair<size_t, size_t> ycoord_to_hex(pair<int, int>);
-
-  decltype(white_rings) &get_player_rings();
-  decltype(white_markers) &get_player_markers();
-  decltype(white_rings) &get_other_player_rings();
-  decltype(white_markers) &get_other_player_markers();
-
-  const decltype(white_rings) &get_player_rings() const;
-  const decltype(white_markers) &get_player_markers() const;
-  const decltype(white_rings) &get_other_player_rings() const;
-  const decltype(white_markers) &get_other_player_markers() const;
 };
 
 #endif
