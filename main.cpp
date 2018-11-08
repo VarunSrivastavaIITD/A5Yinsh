@@ -182,6 +182,193 @@ State remove_some_markers(State state, Coordinate start, Coordinate end)
 
 }
 
+State remove_toggle_combiined(Coordinate p2, Coordinate p3, State state, int both_exclusive) 
+{
+    State newstate = state;
+    auto flip = [](decltype(newstate.black_markers) &s, decltype(newstate.black_markers) &t, const decltype(newstate.black_markers)::value_type &e) 
+    {
+        auto search = s.find(e);
+        if (search != s.end())
+            s.erase(search);
+        t.insert(e);
+    };
+
+    if (p2.first == p3.first) 
+    {
+        if (p3.second > p2.second) 
+        {
+            for (int i = p2.second + both_exclusive; i <= p3.second - both_exclusive; i++) 
+            {
+                if(both_exclusive == 1)
+                {
+                    auto search = newstate.board_map.find(make_pair(p2.first, i));
+                    if(search != newstate.board_map.end())
+                    {
+                        if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) 
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, make_pair(p2.first, i));
+                        } 
+                        else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) 
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, make_pair(p2.first, i));
+                        }
+                    }
+                }
+                else if(both_exclusive == 0)
+                {
+
+                }
+            }
+        }
+
+        else 
+        {
+            for (int i = p2.second - both_exclusive; i >= p3.second + both_exclusive; i--) 
+            {
+                if(both_exclusive == 1)
+                {
+                    auto search = newstate.board_map.find(make_pair(p2.first, i));
+                    if(search != newstate.board_map.end())
+                    {
+                        if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) 
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, make_pair(p2.first, i));
+                        } 
+                        else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) 
+                        {
+                            newstate.board_map[make_pair(p2.first, i)] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, make_pair(p2.first, i));
+                        }
+                    }
+                }
+                else if(both_exclusive == 0)
+                {
+
+                }
+            }
+        }
+    }
+
+    else if (p2.second == p3.second) 
+    {
+        if (p3.first > p2.first) 
+        {
+            for (int i = p2.first + both_exclusive; i <= p3.first - both_exclusive; i++) 
+            {
+                if(both_exclusive == 1)
+                {
+                    auto search = newstate.board_map.find(make_pair(i, p2.second));
+                    if(search != newstate.board_map.end())
+                    {
+                        if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, p2.second));
+                        } 
+                        else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, p2.second));
+                        }
+                    }
+                }
+                else if(both_exclusive == 0)
+                {
+
+                }
+            }
+        } 
+        else {
+            for (int i = p2.first - both_exclusive; i >= p3.first + both_exclusive; i--) 
+            {
+                if(both_exclusive == 1)
+                {
+                    auto search = newstate.board_map.find(make_pair(i, p2.second));
+                    if(search != newstate.board_map.end())
+                    {
+                        if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, p2.second));
+                        } 
+                        else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, p2.second)] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, p2.second));
+                        }
+                    }
+                }
+                else if(both_exclusive == 0)
+                {
+
+                }
+            }
+        }
+    }
+    
+    else 
+    {
+        if (p3.first > p2.first) 
+        {
+            for (int i = p2.first + both_exclusive, j = p2.second + both_exclusive; i <= p3.first - both_exclusive; i++, j++) 
+            {
+                if(both_exclusive == 1)
+                {
+                    auto search = newstate.board_map.find(make_pair(i, j));
+                    if(search != newstate.board_map.end())
+                    {
+                        if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, j)] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, j));
+                        }
+                        else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, j)] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, j));
+                        }
+                    }
+                }
+                else if(both_exclusive == 0)
+                {
+
+                }
+            }
+        } 
+        else 
+        {
+            for (int i = p2.first - both_exclusive, j = p2.second - both_exclusive; i >= p3.first + both_exclusive; i--, j--) 
+            {
+                if(both_exclusive == 1)
+                {
+                    auto search = newstate.board_map.find(make_pair(i, j));
+                    if(search != newstate.board_map.end())
+                    {
+                        if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, j)] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, j));
+                        }
+                        else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) 
+                        {
+                            newstate.board_map[make_pair(i, j)] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, j));
+                        }
+                    }
+                }
+                else if(both_exclusive == 0)
+                {
+
+                }
+            }
+        }
+    }
+    return newstate;
+}
+
 State perform_move (State state, Move move, int M)
 {
     State newstate = state;
@@ -241,17 +428,28 @@ State perform_move (State state, Move move, int M)
     {
         while(move.initial_removal.size()!=0)
         {
-            newstate = remove_some_markers(newstate, move.initial_removal.front().start, move.initial_removal.front().end);
-            // s += "X ";
-            // s += to_string(m.initial_removal.front().ring.first);
-            // s += " ";
-            // s += to_string(m.initial_removal.front().ring.second);
-            // s += " ";
+            newstate = remove_toggle_combiined(move.initial_removal.front().start, move.initial_removal.front().end, newstate, 0);
             delete_from_set(rings.get(), move.initial_removal.front().ring);
             move.initial_removal.pop_front();
         }  
+
+        update_from_map(newstate.board_map, move.initial_pos, marker);
+        update_from_map(newstate.board_map, move.final_pos, ring);
+        delete_from_set(rings.get(), move.initial_pos);
+        rings.get().insert(move.final_pos);
+        markers.get().insert(move.initial_pos);
+        newstate = remove_toggle_combiined(move.initial_pos, move.final_pos, newstate, 1);
+        
+        while(move.final_removal.size()!=0)
+        {
+            newstate = remove_toggle_combiined(move.final_removal.front().start, move.final_removal.front().end, newstate, 0);
+            delete_from_set(rings.get(), move.final_removal.front().ring);
+            move.final_removal.pop_front();
+        }  
+        
+        return newstate;
     }
-    
+    return newstate;
 }
 
 int main()
