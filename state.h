@@ -42,9 +42,6 @@ class State {
     const decltype(white_markers) &get_player_markers() const;
     const decltype(white_rings) &get_other_player_rings() const;
     const decltype(white_markers) &get_other_player_markers() const;
-
-    static bm_type bm5;
-    static bm_type bm6;
 };
 
 #endif

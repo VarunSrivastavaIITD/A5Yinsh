@@ -1,3 +1,4 @@
+#include "heuristic.h"
 #include "move.h"
 #include "state.h"
 #include <algorithm>
@@ -11,14 +12,21 @@
 #include <string>
 #include <vector>
 
+State perform_move(const State state, Move move, size_t M);
+std::vector<Move> get_all_moves(const State& state, size_t K, size_t M);
+long minimax_util(State state, int depth, size_t K, size_t M);
+
 const Coordinate DUMMY_COORDINATE(10, 10);
-const int WINNING_RINGS = 3;
+const int L = 3;
 
 typedef boost::bimap<pair<int, int>, pair<int, int>> bm_type;
 typedef bm_type::value_type bm_value_type;
 
+bm_type bm;
+
 template <typename Iterator>
-bool next_combination(const Iterator first, Iterator k, const Iterator last) {
+bool next_combination(const Iterator first, Iterator k, const Iterator last)
+{
     if ((first == last) || (first == k) || (last == k))
         return false;
     Iterator i1 = first;
@@ -52,7 +60,18 @@ bool next_combination(const Iterator first, Iterator k, const Iterator last) {
     return false;
 }
 
-Move input_parse(string s) {
+pair<int, int> hex_to_ycoord(pair<size_t, size_t> p)
+{
+    return bm.left.at(p);
+}
+
+pair<size_t, size_t> ycoord_to_hex(pair<int, int> p)
+{
+    return bm.right.at(p);
+}
+
+Move input_parse(string s)
+{
     Move result;
     int vecpos;
     int size;
@@ -60,42 +79,15 @@ Move input_parse(string s) {
     istringstream ss(s);
 
     copy(istream_iterator<string>(ss), istream_iterator<string>(),
-         back_inserter(vec));
+        back_inserter(vec));
     size = vec.size();
 
     if (vec[0] == "P") {
         result.mode = Mode_M::P;
-        Coordinate p1 = State::hex_to_ycoord(make_pair(stoi(vec[1]), stoi(vec[2])));
+        Coordinate p1 = hex_to_ycoord(make_pair(stoi(vec[1]), stoi(vec[2])));
         result.placing_pos = p1;
         return result;
     }
-
-    // else if (vec[0] == "S")
-    // {
-    //     result.mode = Mode::S;
-    //     Coordinate p1 = State::hex_to_ycoord(make_pair(stoi(vec[1]),
-    //     stoi(vec[2]))); Coordinate p2 =
-    //     State::hex_to_ycoord(make_pair(stoi(vec[4]), stoi(vec[5])));
-    //     result.initial_pos = p1;
-    //     result.final_pos = p2;
-
-    //     vecpos = 6;
-    //     Move::MarkerRow m;
-
-    //     while(vecpos != size)
-    //     {
-    //         Coordinate p1 = State::hex_to_ycoord(make_pair(stoi(vec[vecpos +
-    //         1]), stoi(vec[vecpos + 2]))); Coordinate p2 =
-    //         State::hex_to_ycoord(make_pair(stoi(vec[vecpos + 4]),
-    //         stoi(vec[vecpos + 5]))); Coordinate p3 =
-    //         State::hex_to_ycoord(make_pair(stoi(vec[vecpos + 7]),
-    //         stoi(vec[vecpos + 8]))); m.start = p1; m.end = p2; m.ring = p3;
-    //         result.final_removal.push_back(m);
-    //         vecpos += 9;
-    //     }
-
-    //     return result;
-    // }
 
     else {
         result.mode = Mode_M::S;
@@ -103,12 +95,12 @@ Move input_parse(string s) {
         vecpos = 0;
         Move::MarkerRow m;
 
-        while (vec[vecpos] != "S") {
-            Coordinate p1 = State::hex_to_ycoord(
+        while (vec[vecpos] != "S" || vecpos != size) {
+            Coordinate p1 = hex_to_ycoord(
                 make_pair(stoi(vec[vecpos + 1]), stoi(vec[vecpos + 2])));
-            Coordinate p2 = State::hex_to_ycoord(
+            Coordinate p2 = hex_to_ycoord(
                 make_pair(stoi(vec[vecpos + 4]), stoi(vec[vecpos + 5])));
-            Coordinate p3 = State::hex_to_ycoord(
+            Coordinate p3 = hex_to_ycoord(
                 make_pair(stoi(vec[vecpos + 7]), stoi(vec[vecpos + 8])));
             m.start = p1;
             m.end = p2;
@@ -117,20 +109,25 @@ Move input_parse(string s) {
             vecpos += 9;
         }
 
-        Coordinate p1 = State::hex_to_ycoord(
+        if (vecpos == size) {
+            result.initial_pos = DUMMY_COORDINATE;
+            result.final_pos = DUMMY_COORDINATE;
+            return result;
+        }
+        Coordinate p1 = hex_to_ycoord(
             make_pair(stoi(vec[vecpos + 1]), stoi(vec[vecpos + 2])));
-        Coordinate p2 = State::hex_to_ycoord(
+        Coordinate p2 = hex_to_ycoord(
             make_pair(stoi(vec[vecpos + 4]), stoi(vec[vecpos + 5])));
         result.initial_pos = p1;
         result.final_pos = p2;
         vecpos += 6;
 
         while (vecpos != size) {
-            Coordinate p1 = State::hex_to_ycoord(
+            Coordinate p1 = hex_to_ycoord(
                 make_pair(stoi(vec[vecpos + 1]), stoi(vec[vecpos + 2])));
-            Coordinate p2 = State::hex_to_ycoord(
+            Coordinate p2 = hex_to_ycoord(
                 make_pair(stoi(vec[vecpos + 4]), stoi(vec[vecpos + 5])));
-            Coordinate p3 = State::hex_to_ycoord(
+            Coordinate p3 = hex_to_ycoord(
                 make_pair(stoi(vec[vecpos + 7]), stoi(vec[vecpos + 8])));
             m.start = p1;
             m.end = p2;
@@ -145,7 +142,8 @@ Move input_parse(string s) {
     return result;
 }
 
-string output_parse(Move m) {
+string output_parse(Move m)
+{
     string s;
     if (m.mode == Mode_M::P) {
         s = "P ";
@@ -156,19 +154,19 @@ string output_parse(Move m) {
     } else {
         while (m.initial_removal.size() != 0) {
             s += "RS ";
-            Coordinate p1 = State::ycoord_to_hex(m.initial_removal.front().start);
+            Coordinate p1 = ycoord_to_hex(m.initial_removal.front().start);
             s += to_string(p1.first);
             s += " ";
             s += to_string(p1.second);
             s += " ";
             s += "RE ";
-            Coordinate p2 = State::ycoord_to_hex(m.initial_removal.front().end);
+            Coordinate p2 = ycoord_to_hex(m.initial_removal.front().end);
             s += to_string(p2.first);
             s += " ";
             s += to_string(p2.second);
             s += " ";
             s += "X ";
-            Coordinate p3 = State::ycoord_to_hex(m.initial_removal.front().ring);
+            Coordinate p3 = ycoord_to_hex(m.initial_removal.front().ring);
             s += to_string(p3.first);
             s += " ";
             s += to_string(p3.second);
@@ -176,14 +174,21 @@ string output_parse(Move m) {
             m.initial_removal.pop_front();
         }
 
+        if (m.initial_pos == DUMMY_COORDINATE || m.final_pos == DUMMY_COORDINATE) {
+            if (s[s.size() - 1] == ' ')
+                s.pop_back();
+
+            return s;
+        }
+
         s += "S ";
-        Coordinate p1 = State::ycoord_to_hex(m.initial_pos);
+        Coordinate p1 = ycoord_to_hex(m.initial_pos);
         s += to_string(p1.first);
         s += " ";
         s += to_string(p1.second);
         s += " ";
         s += "M ";
-        Coordinate p2 = State::ycoord_to_hex(m.final_pos);
+        Coordinate p2 = ycoord_to_hex(m.final_pos);
         s += to_string(p2.first);
         s += " ";
         s += to_string(p2.second);
@@ -191,19 +196,19 @@ string output_parse(Move m) {
 
         while (m.final_removal.size() != 0) {
             s += "RS ";
-            Coordinate p1 = State::ycoord_to_hex(m.final_removal.front().start);
+            Coordinate p1 = ycoord_to_hex(m.final_removal.front().start);
             s += to_string(p1.first);
             s += " ";
             s += to_string(p1.second);
             s += " ";
             s += "RE ";
-            Coordinate p2 = State::ycoord_to_hex(m.final_removal.front().end);
+            Coordinate p2 = ycoord_to_hex(m.final_removal.front().end);
             s += to_string(p2.first);
             s += " ";
             s += to_string(p2.second);
             s += " ";
             s += "X ";
-            Coordinate p3 = State::ycoord_to_hex(m.final_removal.front().ring);
+            Coordinate p3 = ycoord_to_hex(m.final_removal.front().ring);
             s += to_string(p3.first);
             s += " ";
             s += to_string(p3.second);
@@ -219,17 +224,18 @@ string output_parse(Move m) {
     return s;
 }
 
-State remove_toggle_combined(Coordinate p2, Coordinate p3, State state, int both_exclusive) {
+State remove_toggle_combined(Coordinate p2, Coordinate p3, State state, int both_exclusive)
+{
     State newstate = state;
 
-    auto flip = [](decltype(newstate.black_markers) &s, decltype(newstate.black_markers) &t, const decltype(newstate.black_markers)::value_type &e) {
+    auto flip = [](decltype(newstate.black_markers)& s, decltype(newstate.black_markers)& t, const decltype(newstate.black_markers)::value_type& e) {
         auto search = s.find(e);
         if (search != s.end())
             s.erase(search);
         t.insert(e);
     };
 
-    auto delete_from_set = [](decltype(newstate.black_markers) &s, const decltype(newstate.black_markers)::value_type &e) {
+    auto delete_from_set = [](decltype(newstate.black_markers)& s, const decltype(newstate.black_markers)::value_type& e) {
         auto search = s.find(e);
         if (search != s.end())
             s.erase(search);
@@ -237,47 +243,52 @@ State remove_toggle_combined(Coordinate p2, Coordinate p3, State state, int both
 
     if (p2.first == p3.first) {
         if (p3.second > p2.second) {
+
             for (int i = p2.second + both_exclusive; i <= p3.second - both_exclusive; i++) {
-                auto search = newstate.board_map.find(make_pair(p2.first, i));
+                auto p = make_pair(p2.first, i);
+
+                auto search = newstate.board_map.find(p);
                 if (search != newstate.board_map.end()) {
-                    if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) {
+                    if (newstate.board_map[p] == WHITE_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(p2.first, i)] = BLACK_MARKER;
-                            flip(newstate.white_markers, newstate.black_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
-                            delete_from_set(newstate.white_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.white_markers, p);
                         }
-                    } else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) {
+                    } else if (newstate.board_map[p] == BLACK_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(p2.first, i)] = WHITE_MARKER;
-                            flip(newstate.black_markers, newstate.white_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
-                            delete_from_set(newstate.black_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.black_markers, p);
                         }
                     }
                 }
             }
         } else {
             for (int i = p2.second - both_exclusive; i >= p3.second + both_exclusive; i--) {
-                auto search = newstate.board_map.find(make_pair(p2.first, i));
+                auto p = make_pair(p2.first, i);
+
+                auto search = newstate.board_map.find(p);
                 if (search != newstate.board_map.end()) {
-                    if (newstate.board_map[make_pair(p2.first, i)] == WHITE_MARKER) {
+                    if (newstate.board_map[p] == WHITE_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(p2.first, i)] = BLACK_MARKER;
-                            flip(newstate.white_markers, newstate.black_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
-                            delete_from_set(newstate.white_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.white_markers, p);
                         }
-                    } else if (newstate.board_map[make_pair(p2.first, i)] == BLACK_MARKER) {
+                    } else if (newstate.board_map[p] == BLACK_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(p2.first, i)] = WHITE_MARKER;
-                            flip(newstate.black_markers, newstate.white_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(p2.first, i)] = EMPTY;
-                            delete_from_set(newstate.black_markers, make_pair(p2.first, i));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.black_markers, p);
                         }
                     }
                 }
@@ -288,47 +299,48 @@ State remove_toggle_combined(Coordinate p2, Coordinate p3, State state, int both
     else if (p2.second == p3.second) {
         if (p3.first > p2.first) {
             for (int i = p2.first + both_exclusive; i <= p3.first - both_exclusive; i++) {
-
-                auto search = newstate.board_map.find(make_pair(i, p2.second));
+                auto p = make_pair(i, p2.second);
+                auto search = newstate.board_map.find(p);
                 if (search != newstate.board_map.end()) {
-                    if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) {
+                    if (newstate.board_map[p] == WHITE_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, p2.second)] = BLACK_MARKER;
-                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
-                            delete_from_set(newstate.white_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.white_markers, p);
                         }
-                    } else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) {
+                    } else if (newstate.board_map[p] == BLACK_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, p2.second)] = WHITE_MARKER;
-                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
-                            delete_from_set(newstate.black_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.black_markers, p);
                         }
                     }
                 }
             }
         } else {
             for (int i = p2.first - both_exclusive; i >= p3.first + both_exclusive; i--) {
-                auto search = newstate.board_map.find(make_pair(i, p2.second));
+                auto p = make_pair(i, p2.second);
+                auto search = newstate.board_map.find(p);
                 if (search != newstate.board_map.end()) {
-                    if (newstate.board_map[make_pair(i, p2.second)] == WHITE_MARKER) {
+                    if (newstate.board_map[p] == WHITE_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, p2.second)] = BLACK_MARKER;
-                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
-                            delete_from_set(newstate.white_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.white_markers, p);
                         }
-                    } else if (newstate.board_map[make_pair(i, p2.second)] == BLACK_MARKER) {
+                    } else if (newstate.board_map[p] == BLACK_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, p2.second)] = WHITE_MARKER;
-                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, p2.second)] = EMPTY;
-                            delete_from_set(newstate.black_markers, make_pair(i, p2.second));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.black_markers, p);
                         }
                     }
                 }
@@ -340,46 +352,49 @@ State remove_toggle_combined(Coordinate p2, Coordinate p3, State state, int both
     else {
         if (p3.first > p2.first) {
             for (int i = p2.first + both_exclusive, j = p2.second + both_exclusive; i <= p3.first - both_exclusive; i++, j++) {
-                auto search = newstate.board_map.find(make_pair(i, j));
+                auto p = make_pair(i, j);
+                auto search = newstate.board_map.find(p);
                 if (search != newstate.board_map.end()) {
-                    if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) {
+                    if (newstate.board_map[p] == WHITE_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, j)] = BLACK_MARKER;
-                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, j));
+                            newstate.board_map[p] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, j)] = EMPTY;
-                            delete_from_set(newstate.white_markers, make_pair(i, j));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.white_markers, p);
                         }
-                    } else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) {
+                    } else if (newstate.board_map[p] == BLACK_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, j)] = WHITE_MARKER;
-                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, j));
+                            newstate.board_map[p] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, j)] = EMPTY;
-                            delete_from_set(newstate.black_markers, make_pair(i, j));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.black_markers, p);
                         }
                     }
                 }
             }
         } else {
             for (int i = p2.first - both_exclusive, j = p2.second - both_exclusive; i >= p3.first + both_exclusive; i--, j--) {
-                auto search = newstate.board_map.find(make_pair(i, j));
+                auto p = make_pair(i, j);
+
+                auto search = newstate.board_map.find(p);
                 if (search != newstate.board_map.end()) {
-                    if (newstate.board_map[make_pair(i, j)] == WHITE_MARKER) {
+                    if (newstate.board_map[p] == WHITE_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, j)] = BLACK_MARKER;
-                            flip(newstate.white_markers, newstate.black_markers, make_pair(i, j));
+                            newstate.board_map[p] = BLACK_MARKER;
+                            flip(newstate.white_markers, newstate.black_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, j)] = EMPTY;
-                            delete_from_set(newstate.white_markers, make_pair(i, j));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.white_markers, p);
                         }
-                    } else if (newstate.board_map[make_pair(i, j)] == BLACK_MARKER) {
+                    } else if (newstate.board_map[p] == BLACK_MARKER) {
                         if (both_exclusive == 1) {
-                            newstate.board_map[make_pair(i, j)] = WHITE_MARKER;
-                            flip(newstate.black_markers, newstate.white_markers, make_pair(i, j));
+                            newstate.board_map[p] = WHITE_MARKER;
+                            flip(newstate.black_markers, newstate.white_markers, p);
                         } else if (both_exclusive == 0) {
-                            newstate.board_map[make_pair(i, j)] = EMPTY;
-                            delete_from_set(newstate.black_markers, make_pair(i, j));
+                            newstate.board_map[p] = EMPTY;
+                            delete_from_set(newstate.black_markers, p);
                         }
                     }
                 }
@@ -389,11 +404,12 @@ State remove_toggle_combined(Coordinate p2, Coordinate p3, State state, int both
     return newstate;
 }
 
-Move minimax(State state, int depth, size_t K, size_t M) {
+Move minimax(State state, int depth, size_t K, size_t M)
+{
     vector<Move> moves;
     State newstate;
     moves = get_all_moves(state, K, M);
-    long max_score, score;
+    long max_score = numeric_limits<long>::min(), score;
     Move max_move;
     for (auto it1 = moves.begin(); it1 != moves.end(); it1++) {
         newstate = perform_move(newstate, *it1, M);
@@ -406,17 +422,18 @@ Move minimax(State state, int depth, size_t K, size_t M) {
     return max_move;
 }
 
-long minimax_util(State state, int depth, size_t K, size_t M) {
+long minimax_util(State state, int depth, size_t K, size_t M)
+{
     vector<Move> moves;
     State newstate;
     moves = get_all_moves(state, K, M);
-    long ans;
+    long ans = numeric_limits<long>::min();
     long max_score, score, min_score;
     // Move max_move, min_move;
     max_score = numeric_limits<long>::min();
     min_score = numeric_limits<long>::max();
     if (depth == 0) {
-        return (heuristic(state));
+        ans = (heuristic(state, M));
     } else if (state.player == WHITE) {
         for (auto it1 = moves.begin(); it1 != moves.end(); it1++) {
             newstate = perform_move(newstate, *it1, M);
@@ -426,7 +443,7 @@ long minimax_util(State state, int depth, size_t K, size_t M) {
                 // max_move = *it1;
             }
         }
-        return max_score;
+        ans = max_score;
     } else if (state.player == BLACK) {
         for (auto it1 = moves.begin(); it1 != moves.end(); it1++) {
             newstate = perform_move(newstate, *it1, M);
@@ -437,26 +454,27 @@ long minimax_util(State state, int depth, size_t K, size_t M) {
                 // min_move = *it1;
             }
         }
-        return min_score;
+        ans = min_score;
     }
     return ans;
 }
 
-State perform_move(const State state, Move move, size_t M) {
+State perform_move(const State state, Move move, size_t M)
+{
     State newstate = state;
 
     auto delete_from_set =
-        [](decltype(newstate.black_markers) &s,
-           const decltype(newstate.black_markers)::value_type &e) {
+        [](decltype(newstate.black_markers)& s,
+            const decltype(newstate.black_markers)::value_type& e) {
             auto search = s.find(e);
             if (search != s.end())
                 s.erase(search);
         };
 
     auto update_from_map =
-        [](decltype(newstate.board_map) &s,
-           const decltype(newstate.board_map)::key_type &e,
-           const decltype(newstate.board_map)::mapped_type &f) {
+        [](decltype(newstate.board_map)& s,
+            const decltype(newstate.board_map)::key_type& e,
+            const decltype(newstate.board_map)::mapped_type& f) {
             auto search = s.find(e);
             if (search != s.end())
                 s[e] = f;
@@ -527,16 +545,17 @@ State perform_move(const State state, Move move, size_t M) {
     return newstate;
 }
 
-std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 5) {
+std::deque<Coordinate> check_consecutive_markers(const State& state, size_t K = 5)
+{
     std::map<pair<int, int>, std::tuple<int, int, int>> marker_lines;
     const auto markers = state.get_player_markers();
     auto bmap = state.board_map;
-    auto marker = Player::WHITE ? state.player == Player::WHITE : Player::BLACK;
+    auto marker = state.player == Player::WHITE ? WHITE_MARKER : BLACK_MARKER;
 
     for (auto it = markers.cbegin(); it != markers.cend(); ++it)
         marker_lines[*it] = std::make_tuple(1, 1, 1);
 
-    for (const auto &coordinate : markers) {
+    for (const auto& coordinate : markers) {
 
         if (get<0>(marker_lines[coordinate]) == 1) {
             std::deque<Coordinate> line;
@@ -557,7 +576,7 @@ std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 
                     line.emplace_front(coordinate.first, y);
                 }
             }
-            std::get<0>(marker_lines[std::make_pair(coordinate.first, coordinate.second)]) = 0;
+            std::get<0>(marker_lines[coordinate]) = 0;
 
             if (line.size() >= K)
                 return line;
@@ -583,7 +602,7 @@ std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 
                     line.emplace_front(x, coordinate.second);
                 }
             }
-            std::get<1>(marker_lines[make_pair(coordinate.first, coordinate.second)]) = 0;
+            std::get<1>(marker_lines[coordinate]) = 0;
             if (line.size() >= K)
                 return line;
         }
@@ -608,7 +627,7 @@ std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 
                     line.emplace_front(x, y);
                 }
             }
-            get<2>(marker_lines[make_pair(coordinate.first, coordinate.second)]) = 0;
+            get<2>(marker_lines[coordinate]) = 0;
             if (line.size() >= K)
                 return line;
         }
@@ -616,7 +635,8 @@ std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 
     return std::deque<Coordinate>();
 }
 
-bool add_move(decltype(State::board_map) &bmap, const pair<int, int> p, vector<Move> &vec, const pair<int, int> coordinate, bool &found_marker, decltype(Move::initial_removal) mrow) {
+bool add_move(decltype(State::board_map)& bmap, const pair<int, int> p, vector<Move>& vec, const pair<int, int> coordinate, bool& found_marker, decltype(Move::initial_removal) mrow)
+{
     Move m;
     switch (bmap[p]) {
     case EMPTY:
@@ -641,7 +661,8 @@ bool add_move(decltype(State::board_map) &bmap, const pair<int, int> p, vector<M
     return false;
 }
 
-std::vector<Move> generate_pmode_moves(const State &state) {
+std::vector<Move> generate_pmode_moves(const State& state)
+{
     std::vector<Move> moves;
     Move move;
     for (auto it = state.board_map.begin(); it != state.board_map.end(); ++it) {
@@ -654,7 +675,8 @@ std::vector<Move> generate_pmode_moves(const State &state) {
     return moves;
 }
 
-std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
+std::vector<Move> get_all_moves(const State& state, size_t K, size_t M)
+{
     std::vector<Move> moves;
 
     if (state.mode == Mode_S::P) {
@@ -665,11 +687,12 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
         auto rings = state.get_player_rings();
 
         Move temp_move;
+        State newstate = state;
         while (!line.empty()) {
             auto front = line.front();
             auto back = line.back();
             temp_move.initial_removal.emplace_back(front, back, DUMMY_COORDINATE);
-            auto newstate = remove_toggle_combined(front, back, state, 0);
+            newstate = remove_toggle_combined(front, back, newstate, 0);
             line = check_consecutive_markers(newstate, K);
         }
 
@@ -677,8 +700,8 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
             auto remove_rings = std::min(temp_move.initial_removal.size(), rings.size());
             bool early_terminate = false;
 
-            if (rings.size() - remove_rings <= (M - WINNING_RINGS)) {
-                remove_rings = rings.size() + WINNING_RINGS - M;
+            if (rings.size() - remove_rings <= (M - L)) {
+                remove_rings = rings.size() + L - M;
                 early_terminate = true;
             }
 
@@ -697,7 +720,7 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
             } while (next_combination(vec.begin(), vec.begin() + remove_rings, vec.end()));
 
             if (early_terminate) {
-                for (auto &m : moves)
+                for (auto& m : moves)
                     m.initial_pos = DUMMY_COORDINATE;
                 return moves;
             }
@@ -710,7 +733,7 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
         moves.push_back(Move());
     }
 
-    for (const auto &m : moves) {
+    for (const auto& m : moves) {
         bool found_marker = false;
         State newstate = state;
 
@@ -724,7 +747,7 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
         auto newrings = newstate.get_player_rings();
         auto newbmap = newstate.board_map;
 
-        for (const auto &coordinate : newrings) {
+        for (const auto& coordinate : newrings) {
             for (auto y = coordinate.second + 1; newbmap.find(make_pair(coordinate.first, y)) != newbmap.end(); ++y) {
                 if (add_move(newbmap, make_pair(coordinate.first, y), temp_moves, coordinate, found_marker, m.initial_removal))
                     break;
@@ -766,26 +789,27 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
 
     temp_moves.clear();
 
-    for (const auto &m : moves) {
+    for (const auto& m : moves) {
         State newstate = perform_move(state, m, M);
 
         auto line = check_consecutive_markers(newstate, K);
         auto rings = newstate.get_player_rings();
 
         Move temp_move;
+        State tempstate = newstate;
         while (!line.empty()) {
             auto front = line.front();
             auto back = line.back();
             temp_move.final_removal.emplace_back(front, back, DUMMY_COORDINATE);
-            auto tempstate = remove_toggle_combined(front, back, newstate, 0);
+            tempstate = remove_toggle_combined(front, back, tempstate, 0);
             line = check_consecutive_markers(tempstate, K);
         }
 
         if (temp_move.final_removal.size() != 0) {
             auto remove_rings = std::min(temp_move.final_removal.size(), rings.size());
 
-            if (rings.size() - remove_rings <= (M - WINNING_RINGS)) {
-                remove_rings = rings.size() + WINNING_RINGS - M;
+            if (rings.size() - remove_rings <= (M - L)) {
+                remove_rings = rings.size() + L - M;
             }
 
             std::vector<Coordinate> vec(rings.begin(), rings.end());
@@ -808,110 +832,306 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
 
     return moves;
 }
-
-bm_type get_board_map(size_t N) {
-}
-
-int main() {
-    string s = "RS 1 2 RE 3 4 X 5 6 RS 1 2 RE 3 4 X 5 6 S 1 2 M 3 4 RS 1 2 RE 3 "
-               "4 X 5 6 RS 1 2 RE 3 4 X 5 6";
-    Move m = input_parse(s);
-    string t = output_parse(m);
-    cout << s << endl;
-    cout << t << endl;
-    if (t == s) {
-        cout << "i/p o/p done";
+void get_board_map(size_t N)
+{
+    if (N == 5) {
+        bm.insert(bm_value_type(make_pair(0, 0), make_pair(0, 0)));
+        // hex 1
+        bm.insert(bm_value_type(make_pair(1, 0), make_pair(0, 1)));
+        bm.insert(bm_value_type(make_pair(1, 1), make_pair(1, 1)));
+        bm.insert(bm_value_type(make_pair(1, 2), make_pair(1, 0)));
+        bm.insert(bm_value_type(make_pair(1, 3), make_pair(0, -1)));
+        bm.insert(bm_value_type(make_pair(1, 4), make_pair(-1, -1)));
+        bm.insert(bm_value_type(make_pair(1, 5), make_pair(-1, 0)));
+        // hex 2
+        bm.insert(bm_value_type(make_pair(2, 0), make_pair(0, 2)));
+        bm.insert(bm_value_type(make_pair(2, 1), make_pair(1, 2)));
+        bm.insert(bm_value_type(make_pair(2, 2), make_pair(2, 2)));
+        bm.insert(bm_value_type(make_pair(2, 3), make_pair(2, 1)));
+        bm.insert(bm_value_type(make_pair(2, 4), make_pair(2, 0)));
+        bm.insert(bm_value_type(make_pair(2, 5), make_pair(1, -1)));
+        bm.insert(bm_value_type(make_pair(2, 6), make_pair(0, -2)));
+        bm.insert(bm_value_type(make_pair(2, 7), make_pair(-1, -2)));
+        bm.insert(bm_value_type(make_pair(2, 8), make_pair(-2, -2)));
+        bm.insert(bm_value_type(make_pair(2, 9), make_pair(-2, -1)));
+        bm.insert(bm_value_type(make_pair(2, 10), make_pair(-2, 0)));
+        bm.insert(bm_value_type(make_pair(2, 11), make_pair(-1, 1)));
+        // hex 3
+        bm.insert(bm_value_type(make_pair(3, 0), make_pair(0, 3)));
+        bm.insert(bm_value_type(make_pair(3, 1), make_pair(1, 3)));
+        bm.insert(bm_value_type(make_pair(3, 2), make_pair(2, 3)));
+        bm.insert(bm_value_type(make_pair(3, 3), make_pair(3, 3)));
+        bm.insert(bm_value_type(make_pair(3, 4), make_pair(3, 2)));
+        bm.insert(bm_value_type(make_pair(3, 5), make_pair(3, 1)));
+        bm.insert(bm_value_type(make_pair(3, 6), make_pair(3, 0)));
+        bm.insert(bm_value_type(make_pair(3, 7), make_pair(2, -1)));
+        bm.insert(bm_value_type(make_pair(3, 8), make_pair(1, -2)));
+        bm.insert(bm_value_type(make_pair(3, 9), make_pair(0, -3)));
+        bm.insert(bm_value_type(make_pair(3, 10), make_pair(-1, -3)));
+        bm.insert(bm_value_type(make_pair(3, 11), make_pair(-2, -3)));
+        bm.insert(bm_value_type(make_pair(3, 12), make_pair(-3, -3)));
+        bm.insert(bm_value_type(make_pair(3, 13), make_pair(-3, -2)));
+        bm.insert(bm_value_type(make_pair(3, 14), make_pair(-3, -1)));
+        bm.insert(bm_value_type(make_pair(3, 15), make_pair(-3, 0)));
+        bm.insert(bm_value_type(make_pair(3, 16), make_pair(-2, 1)));
+        bm.insert(bm_value_type(make_pair(3, 17), make_pair(-1, 2)));
+        // hex 4
+        bm.insert(bm_value_type(make_pair(4, 0), make_pair(0, 4)));
+        bm.insert(bm_value_type(make_pair(4, 1), make_pair(1, 4)));
+        bm.insert(bm_value_type(make_pair(4, 2), make_pair(2, 4)));
+        bm.insert(bm_value_type(make_pair(4, 3), make_pair(3, 4)));
+        bm.insert(bm_value_type(make_pair(4, 4), make_pair(4, 4)));
+        bm.insert(bm_value_type(make_pair(4, 5), make_pair(4, 3)));
+        bm.insert(bm_value_type(make_pair(4, 6), make_pair(4, 2)));
+        bm.insert(bm_value_type(make_pair(4, 7), make_pair(4, 1)));
+        bm.insert(bm_value_type(make_pair(4, 8), make_pair(4, 0)));
+        bm.insert(bm_value_type(make_pair(4, 9), make_pair(3, -1)));
+        bm.insert(bm_value_type(make_pair(4, 10), make_pair(2, -2)));
+        bm.insert(bm_value_type(make_pair(4, 11), make_pair(1, -3)));
+        bm.insert(bm_value_type(make_pair(4, 12), make_pair(0, -4)));
+        bm.insert(bm_value_type(make_pair(4, 13), make_pair(-1, -4)));
+        bm.insert(bm_value_type(make_pair(4, 14), make_pair(-2, -4)));
+        bm.insert(bm_value_type(make_pair(4, 15), make_pair(-3, -4)));
+        bm.insert(bm_value_type(make_pair(4, 16), make_pair(-4, -4)));
+        bm.insert(bm_value_type(make_pair(4, 17), make_pair(-4, -3)));
+        bm.insert(bm_value_type(make_pair(4, 18), make_pair(-4, -2)));
+        bm.insert(bm_value_type(make_pair(4, 19), make_pair(-4, -1)));
+        bm.insert(bm_value_type(make_pair(4, 20), make_pair(-4, 0)));
+        bm.insert(bm_value_type(make_pair(4, 21), make_pair(-3, 1)));
+        bm.insert(bm_value_type(make_pair(4, 22), make_pair(-2, 2)));
+        bm.insert(bm_value_type(make_pair(4, 23), make_pair(-1, 3)));
+        // hex 5
+        bm.insert(bm_value_type(make_pair(5, 1), make_pair(1, 5)));
+        bm.insert(bm_value_type(make_pair(5, 2), make_pair(2, 5)));
+        bm.insert(bm_value_type(make_pair(5, 3), make_pair(3, 5)));
+        bm.insert(bm_value_type(make_pair(5, 4), make_pair(4, 5)));
+        bm.insert(bm_value_type(make_pair(5, 6), make_pair(5, 4)));
+        bm.insert(bm_value_type(make_pair(5, 7), make_pair(5, 3)));
+        bm.insert(bm_value_type(make_pair(5, 8), make_pair(5, 2)));
+        bm.insert(bm_value_type(make_pair(5, 9), make_pair(5, 1)));
+        bm.insert(bm_value_type(make_pair(5, 11), make_pair(4, -1)));
+        bm.insert(bm_value_type(make_pair(5, 12), make_pair(3, -2)));
+        bm.insert(bm_value_type(make_pair(5, 13), make_pair(2, -3)));
+        bm.insert(bm_value_type(make_pair(5, 14), make_pair(1, -4)));
+        bm.insert(bm_value_type(make_pair(5, 16), make_pair(-1, -5)));
+        bm.insert(bm_value_type(make_pair(5, 17), make_pair(-2, -5)));
+        bm.insert(bm_value_type(make_pair(5, 18), make_pair(-3, -5)));
+        bm.insert(bm_value_type(make_pair(5, 19), make_pair(-4, -5)));
+        bm.insert(bm_value_type(make_pair(5, 21), make_pair(-5, -4)));
+        bm.insert(bm_value_type(make_pair(5, 22), make_pair(-5, -3)));
+        bm.insert(bm_value_type(make_pair(5, 23), make_pair(-5, -2)));
+        bm.insert(bm_value_type(make_pair(5, 24), make_pair(-5, -1)));
+        bm.insert(bm_value_type(make_pair(5, 26), make_pair(-4, 1)));
+        bm.insert(bm_value_type(make_pair(5, 27), make_pair(-3, 2)));
+        bm.insert(bm_value_type(make_pair(5, 28), make_pair(-2, 3)));
+        bm.insert(bm_value_type(make_pair(5, 29), make_pair(-1, 4)));
     }
-    return 0;
+
+    else {
+        bm.insert(bm_value_type(make_pair(0, 0), make_pair(0, 0)));
+        // hex 1
+        bm.insert(bm_value_type(make_pair(1, 0), make_pair(0, 1)));
+        bm.insert(bm_value_type(make_pair(1, 1), make_pair(1, 1)));
+        bm.insert(bm_value_type(make_pair(1, 2), make_pair(1, 0)));
+        bm.insert(bm_value_type(make_pair(1, 3), make_pair(0, -1)));
+        bm.insert(bm_value_type(make_pair(1, 4), make_pair(-1, -1)));
+        bm.insert(bm_value_type(make_pair(1, 5), make_pair(-1, 0)));
+        // hex 2
+        bm.insert(bm_value_type(make_pair(2, 0), make_pair(0, 2)));
+        bm.insert(bm_value_type(make_pair(2, 1), make_pair(1, 2)));
+        bm.insert(bm_value_type(make_pair(2, 2), make_pair(2, 2)));
+        bm.insert(bm_value_type(make_pair(2, 3), make_pair(2, 1)));
+        bm.insert(bm_value_type(make_pair(2, 4), make_pair(2, 0)));
+        bm.insert(bm_value_type(make_pair(2, 5), make_pair(1, -1)));
+        bm.insert(bm_value_type(make_pair(2, 6), make_pair(0, -2)));
+        bm.insert(bm_value_type(make_pair(2, 7), make_pair(-1, -2)));
+        bm.insert(bm_value_type(make_pair(2, 8), make_pair(-2, -2)));
+        bm.insert(bm_value_type(make_pair(2, 9), make_pair(-2, -1)));
+        bm.insert(bm_value_type(make_pair(2, 10), make_pair(-2, 0)));
+        bm.insert(bm_value_type(make_pair(2, 11), make_pair(-1, 1)));
+        // hex 3
+        bm.insert(bm_value_type(make_pair(3, 0), make_pair(0, 3)));
+        bm.insert(bm_value_type(make_pair(3, 1), make_pair(1, 3)));
+        bm.insert(bm_value_type(make_pair(3, 2), make_pair(2, 3)));
+        bm.insert(bm_value_type(make_pair(3, 3), make_pair(3, 3)));
+        bm.insert(bm_value_type(make_pair(3, 4), make_pair(3, 2)));
+        bm.insert(bm_value_type(make_pair(3, 5), make_pair(3, 1)));
+        bm.insert(bm_value_type(make_pair(3, 6), make_pair(3, 0)));
+        bm.insert(bm_value_type(make_pair(3, 7), make_pair(2, -1)));
+        bm.insert(bm_value_type(make_pair(3, 8), make_pair(1, -2)));
+        bm.insert(bm_value_type(make_pair(3, 9), make_pair(0, -3)));
+        bm.insert(bm_value_type(make_pair(3, 10), make_pair(-1, -3)));
+        bm.insert(bm_value_type(make_pair(3, 11), make_pair(-2, -3)));
+        bm.insert(bm_value_type(make_pair(3, 12), make_pair(-3, -3)));
+        bm.insert(bm_value_type(make_pair(3, 13), make_pair(-3, -2)));
+        bm.insert(bm_value_type(make_pair(3, 14), make_pair(-3, -1)));
+        bm.insert(bm_value_type(make_pair(3, 15), make_pair(-3, 0)));
+        bm.insert(bm_value_type(make_pair(3, 16), make_pair(-2, 1)));
+        bm.insert(bm_value_type(make_pair(3, 17), make_pair(-1, 2)));
+        // hex 4
+        bm.insert(bm_value_type(make_pair(4, 0), make_pair(0, 4)));
+        bm.insert(bm_value_type(make_pair(4, 1), make_pair(1, 4)));
+        bm.insert(bm_value_type(make_pair(4, 2), make_pair(2, 4)));
+        bm.insert(bm_value_type(make_pair(4, 3), make_pair(3, 4)));
+        bm.insert(bm_value_type(make_pair(4, 4), make_pair(4, 4)));
+        bm.insert(bm_value_type(make_pair(4, 5), make_pair(4, 3)));
+        bm.insert(bm_value_type(make_pair(4, 6), make_pair(4, 2)));
+        bm.insert(bm_value_type(make_pair(4, 7), make_pair(4, 1)));
+        bm.insert(bm_value_type(make_pair(4, 8), make_pair(4, 0)));
+        bm.insert(bm_value_type(make_pair(4, 9), make_pair(3, -1)));
+        bm.insert(bm_value_type(make_pair(4, 10), make_pair(2, -2)));
+        bm.insert(bm_value_type(make_pair(4, 11), make_pair(1, -3)));
+        bm.insert(bm_value_type(make_pair(4, 12), make_pair(0, -4)));
+        bm.insert(bm_value_type(make_pair(4, 13), make_pair(-1, -4)));
+        bm.insert(bm_value_type(make_pair(4, 14), make_pair(-2, -4)));
+        bm.insert(bm_value_type(make_pair(4, 15), make_pair(-3, -4)));
+        bm.insert(bm_value_type(make_pair(4, 16), make_pair(-4, -4)));
+        bm.insert(bm_value_type(make_pair(4, 17), make_pair(-4, -3)));
+        bm.insert(bm_value_type(make_pair(4, 18), make_pair(-4, -2)));
+        bm.insert(bm_value_type(make_pair(4, 19), make_pair(-4, -1)));
+        bm.insert(bm_value_type(make_pair(4, 20), make_pair(-4, 0)));
+        bm.insert(bm_value_type(make_pair(4, 21), make_pair(-3, 1)));
+        bm.insert(bm_value_type(make_pair(4, 22), make_pair(-2, 2)));
+        bm.insert(bm_value_type(make_pair(4, 23), make_pair(-1, 3)));
+
+        // hex 5
+        bm.insert(bm_value_type(make_pair(5, 0), make_pair(0, 5)));
+        bm.insert(bm_value_type(make_pair(5, 1), make_pair(1, 5)));
+        bm.insert(bm_value_type(make_pair(5, 2), make_pair(2, 5)));
+        bm.insert(bm_value_type(make_pair(5, 3), make_pair(3, 5)));
+        bm.insert(bm_value_type(make_pair(5, 4), make_pair(4, 5)));
+        bm.insert(bm_value_type(make_pair(5, 5), make_pair(5, 5)));
+        bm.insert(bm_value_type(make_pair(5, 6), make_pair(5, 4)));
+        bm.insert(bm_value_type(make_pair(5, 7), make_pair(5, 3)));
+        bm.insert(bm_value_type(make_pair(5, 8), make_pair(5, 2)));
+        bm.insert(bm_value_type(make_pair(5, 9), make_pair(5, 1)));
+        bm.insert(bm_value_type(make_pair(5, 10), make_pair(5, 0)));
+        bm.insert(bm_value_type(make_pair(5, 11), make_pair(4, -1)));
+        bm.insert(bm_value_type(make_pair(5, 12), make_pair(3, -2)));
+        bm.insert(bm_value_type(make_pair(5, 13), make_pair(2, -3)));
+        bm.insert(bm_value_type(make_pair(5, 14), make_pair(1, -4)));
+        bm.insert(bm_value_type(make_pair(5, 15), make_pair(0, -5)));
+        bm.insert(bm_value_type(make_pair(5, 16), make_pair(-1, -5)));
+        bm.insert(bm_value_type(make_pair(5, 17), make_pair(-2, -5)));
+        bm.insert(bm_value_type(make_pair(5, 18), make_pair(-3, -5)));
+        bm.insert(bm_value_type(make_pair(5, 19), make_pair(-4, -5)));
+        bm.insert(bm_value_type(make_pair(5, 20), make_pair(-5, -5)));
+        bm.insert(bm_value_type(make_pair(5, 21), make_pair(-5, -4)));
+        bm.insert(bm_value_type(make_pair(5, 22), make_pair(-5, -3)));
+        bm.insert(bm_value_type(make_pair(5, 23), make_pair(-5, -2)));
+        bm.insert(bm_value_type(make_pair(5, 24), make_pair(-5, -1)));
+        bm.insert(bm_value_type(make_pair(5, 25), make_pair(-5, 0)));
+        bm.insert(bm_value_type(make_pair(5, 26), make_pair(-4, 1)));
+        bm.insert(bm_value_type(make_pair(5, 27), make_pair(-3, 2)));
+        bm.insert(bm_value_type(make_pair(5, 28), make_pair(-2, 3)));
+        bm.insert(bm_value_type(make_pair(5, 29), make_pair(-1, 4)));
+
+        //hex6
+        //hex6
+        // bm.insert(bm_value_type(make_pair(6, 0), make_pair(0, 6)));
+        bm.insert(bm_value_type(make_pair(6, 1), make_pair(1, 6)));
+        bm.insert(bm_value_type(make_pair(6, 2), make_pair(2, 6)));
+        bm.insert(bm_value_type(make_pair(6, 3), make_pair(3, 6)));
+        bm.insert(bm_value_type(make_pair(6, 4), make_pair(4, 6)));
+        bm.insert(bm_value_type(make_pair(6, 5), make_pair(5, 6)));
+        // bm.insert(bm_value_type(make_pair(6, 6), make_pair(6, 6)));
+        bm.insert(bm_value_type(make_pair(6, 7), make_pair(6, 5)));
+        bm.insert(bm_value_type(make_pair(6, 8), make_pair(6, 4)));
+        bm.insert(bm_value_type(make_pair(6, 9), make_pair(6, 3)));
+        bm.insert(bm_value_type(make_pair(6, 10), make_pair(6, 2)));
+        bm.insert(bm_value_type(make_pair(6, 11), make_pair(6, 1)));
+        // bm.insert(bm_value_type(make_pair(6, 12), make_pair(6, 0)));
+        bm.insert(bm_value_type(make_pair(6, 13), make_pair(5, -1)));
+        bm.insert(bm_value_type(make_pair(6, 14), make_pair(4, -2)));
+        bm.insert(bm_value_type(make_pair(6, 15), make_pair(3, -3)));
+        bm.insert(bm_value_type(make_pair(6, 16), make_pair(2, -4)));
+        bm.insert(bm_value_type(make_pair(6, 17), make_pair(1, -5)));
+        // bm.insert(bm_value_type(make_pair(6, 18), make_pair(0, -6)));
+        bm.insert(bm_value_type(make_pair(6, 19), make_pair(-1, -6)));
+        bm.insert(bm_value_type(make_pair(6, 20), make_pair(-2, -6)));
+        bm.insert(bm_value_type(make_pair(6, 21), make_pair(-3, -6)));
+        bm.insert(bm_value_type(make_pair(6, 22), make_pair(-4, -6)));
+        bm.insert(bm_value_type(make_pair(6, 23), make_pair(-5, -6)));
+
+        // bm.insert(bm_value_type(make_pair(6, 24), make_pair(-6, -6)));
+        bm.insert(bm_value_type(make_pair(6, 25), make_pair(-6, -5)));
+        bm.insert(bm_value_type(make_pair(6, 26), make_pair(-6, -4)));
+        bm.insert(bm_value_type(make_pair(6, 27), make_pair(-6, -3)));
+        bm.insert(bm_value_type(make_pair(6, 28), make_pair(-6, -2)));
+        bm.insert(bm_value_type(make_pair(6, 29), make_pair(-6, -1)));
+        // bm.insert(bm_value_type(make_pair(6, 30), make_pair(-6, 0)));
+
+        bm.insert(bm_value_type(make_pair(6, 31), make_pair(-5, 1)));
+        bm.insert(bm_value_type(make_pair(6, 32), make_pair(-4, 2)));
+        bm.insert(bm_value_type(make_pair(6, 33), make_pair(-3, 3)));
+        bm.insert(bm_value_type(make_pair(6, 34), make_pair(-2, 4)));
+        bm.insert(bm_value_type(make_pair(6, 35), make_pair(-1, 5)));
+    }
 }
 
-// TODO: Fix for different rings to be removed
-// TODO: Fix 
-bool is_game_over(const State & state)  {
-    if (state.mode != P) {
-        return state.black_rings.size() == 2 || state.white_rings.size() == 2;
+bool is_game_over(const State& state, const size_t M)
+{
+    if (state.mode != Mode_S::P) {
+        const size_t L = 3;
+        return state.black_rings.size() == (M - L) || state.white_rings.size() == (M - L);
     }
     return false;
 }
-
-int main2() {
-    // ifstream fin("input5.txt");
-    auto &fin = cin;
-    State state;
-    state.mode = Mode_S::P;
+int main()
+{
+    auto& fin = cin;
     size_t N, M, K;
     int player_id, time_limit_in_seconds;
     string input_move;
+    string output_move;
     int depth = 3;
     auto begin = chrono::high_resolution_clock::now();
     auto current = chrono::high_resolution_clock::now();
 
-    fin >> player_id >> N >> time_limit_in_seconds;
+    // TODO: K
+    fin >> player_id >> N >> time_limit_in_seconds >> K;
+    M = N;
     fin.clear();
     fin.ignore(1000, '\n');
 
+    State state(N);
+    state.mode = Mode_S::P;
+
     if (player_id == 2) {
+        state.player = BLACK;
         //other person is moving first
         auto seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
 
-        while (getline(fin, input_move) && (!is_game_over(state)) && (seconds < time_limit_in_seconds)) {
+        while (getline(fin, input_move) && (!is_game_over(state, N)) && (seconds < time_limit_in_seconds)) {
             auto move = input_parse(input_move);
             state = perform_move(state, move, M);
 
-            auto input_remove_string = game_board.check_for_consecutive_markers();
-            // print_map(game_board.state.board_map);
-            if (game_board.is_game_over()) {
-                cout << input_remove_string << endl;
-                break;
-            }
-
-            auto ply = game_board.bestply(depth);
-            game_board.state = perform_proper_ply(game_board.state, player, ply);
-            auto output_remove_string = game_board.check_for_consecutive_markers();
-
-            auto output = game_board.output_parse(ply);
-
-            if (input_remove_string.size() > 0)
-                output = input_remove_string + " " + output;
-            if (output_remove_string.size() > 0)
-                output = output + " " + output_remove_string;
-
-            cout << output << endl;
-
-            // cout << endl
-            //      << "OUTPUT STATE" << endl;
-            // print_map(game_board.state.board_map);
+            auto best_move = minimax(state, depth, K, M);
+            state = perform_move(state, best_move, M);
+            output_move = output_parse(best_move);
+            cout << output_move << endl;
 
             current = chrono::high_resolution_clock::now();
             seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
         }
     } else if (player_id == 1) {
+        state.player = WHITE;
         auto seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
 
-        auto ply = game_board.bestply(depth);
-        game_board.state = perform_proper_ply(game_board.state, player, ply);
-        auto output = game_board.output_parse(ply);
-        cout << output << endl;
+        auto best_move = minimax(state, depth, K, M);
+        state = perform_move(state, best_move, M);
+        output_move = output_parse(best_move);
+        cout << output_move << endl;
 
-        while (getline(fin, input_move) && (!game_board.is_game_over()) && (seconds < time_limit_in_seconds)) {
-            auto strx = game_board.remove_other_markers(input_move);
-            game_board.input_parse(strx, BLACK);
-            auto input_remove_string = game_board.check_for_consecutive_markers();
+        while (getline(fin, input_move) && (!is_game_over(state, N)) && (seconds < time_limit_in_seconds)) {
 
-            if (game_board.is_game_over()) {
-                cout << input_remove_string << endl;
-                break;
-            }
+            auto move = input_parse(input_move);
+            state = perform_move(state, move, M);
 
-            auto ply = game_board.bestply(depth);
-            game_board.state = perform_proper_ply(game_board.state, player, ply);
-            auto output = game_board.output_parse(ply);
-            auto output_remove_string = game_board.check_for_consecutive_markers();
-            if (input_remove_string.size() > 0)
-                output = input_remove_string + " " + output;
-            if (output_remove_string.size() > 0)
-                output = output + " " + output_remove_string;
-            cout << output << endl;
+            auto best_move = minimax(state, depth, K, M);
+            state = perform_move(state, best_move, M);
+            output_move = output_parse(best_move);
+            cout << output_move << endl;
 
             current = chrono::high_resolution_clock::now();
             seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
