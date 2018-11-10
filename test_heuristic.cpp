@@ -1076,15 +1076,9 @@ bool is_game_over(const State &state, const size_t M) {
 int main() {
     auto &fin = cin;
     size_t N, M, K;
-    int player_id, time_limit_in_seconds;
     string input_move;
-    string output_move;
-    int depth = 1;
-    auto begin = chrono::high_resolution_clock::now();
-    auto current = chrono::high_resolution_clock::now();
 
-    // TODO: K
-    fin >> player_id >> N >> time_limit_in_seconds >> K;
+    fin >> N >> K;
     M = N;
     fin.clear();
     fin.ignore(1000, '\n');
@@ -1092,46 +1086,24 @@ int main() {
 
     State state(N);
     state.mode = Mode_S::P;
-
-    if (player_id == 2) {
-        state.player = BLACK;
-        //other person is moving first
-        auto seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
-
-        while (getline(fin, input_move) && (!is_game_over(state, N)) && (seconds < time_limit_in_seconds)) {
-            auto move = input_parse(input_move);
-            state = perform_move(state, move, M);
-
-            auto best_move = minimax(state, depth, K, M);
-            state = perform_move(state, best_move, M);
-            output_move = output_parse(best_move);
-            cout << output_move << endl;
-
-            current = chrono::high_resolution_clock::now();
-            seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
-        }
-    } else if (player_id == 1) {
-        state.player = WHITE;
-        auto seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
-
-        auto best_move = minimax(state, depth, K, M);
-        state = perform_move(state, best_move, M);
-        output_move = output_parse(best_move);
-        cout << output_move << endl;
-
-        while (getline(fin, input_move) && (!is_game_over(state, N)) && (seconds < time_limit_in_seconds)) {
-
-            auto move = input_parse(input_move);
-            state = perform_move(state, move, M);
-
-            auto best_move = minimax(state, depth, K, M);
-            state = perform_move(state, best_move, M);
-            output_move = output_parse(best_move);
-            cout << output_move << endl;
-
-            current = chrono::high_resolution_clock::now();
-            seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
-        }
+    state.player = BLACK;
+    while (getline(fin, input_move)) {
+        auto move = input_parse(input_move);
+        state = perform_move(state, move, M);
     }
+    state.player = WHITE;
+    cout << state.player << endl;
+    cout << "Value Heuristic: " << value_heuristic(state, M) << endl;
+    cout << "Marker Heuristic: " << marker_heuristic(state) << endl;
+    cout << "Ring Heuristic: " << ring_connected_heuristic(state) << endl;
+    cout << "Final Heuristic: " << heuristic(state, M) << endl;
+
+    state.player = BLACK;
+    cout << state.player << endl;
+    cout << "Value Heuristic: " << value_heuristic(state, M) << endl;
+    cout << "Marker Heuristic: " << marker_heuristic(state) << endl;
+    cout << "Ring Heuristic: " << ring_connected_heuristic(state) << endl;
+    cout << "Final Heuristic: " << heuristic(state, M) << endl;
+
     return 0;
 }

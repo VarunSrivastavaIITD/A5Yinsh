@@ -13,24 +13,22 @@
 #include <utility>
 #include <vector>
 
-long value_heuristic(const State& state, const Player& player, int M)
-{
+long value_heuristic(State state, int M) {
     auto rings = state.get_player_rings();
     if (state.mode == Mode_S::P)
         return 0;
     return 10000 * static_cast<long>(M - rings.size());
 }
 
-long marker_heuristic(const State& state, const Player& player)
-{
+long marker_heuristic(const State &state) {
     auto markers = state.get_player_markers();
     return 10 * static_cast<long>(markers.size());
 }
 
-long ring_moves_heuristic(State& state, const Player& player)
-{
+long ring_moves_heuristic(State &state) {
+    auto player = state.player;
 
-    auto add_ply = [](decltype(State::board_map)& bmap, const pair<int, int> p, long& count) -> bool {
+    auto add_ply = [](decltype(State::board_map) &bmap, const pair<int, int> p, long &count) -> bool {
         switch (bmap[p]) {
         case EMPTY:
             ++count;
@@ -49,7 +47,7 @@ long ring_moves_heuristic(State& state, const Player& player)
     auto bmap = state.board_map;
     auto rings = state.get_player_rings();
     long count = 0;
-    for (const auto& coordinate : rings) {
+    for (const auto &coordinate : rings) {
         for (auto y = coordinate.second + 1; bmap.find(make_pair(coordinate.first, y)) != bmap.end(); ++y) {
             if (add_ply(bmap, make_pair(coordinate.first, y), count))
                 break;
@@ -83,17 +81,17 @@ long ring_moves_heuristic(State& state, const Player& player)
     return count;
 }
 
-long ring_connected_heuristic(State& state, const Player& player)
-{
+long ring_connected_heuristic(State &state) {
+    auto player = state.player;
     std::vector<Coordinate> coords;
-    for (const auto& m : state.board_map)
+    for (const auto &m : state.board_map)
         coords.push_back(m.first);
 
     auto rings = state.get_player_rings();
 
     long count = 0;
-    for (const auto& r : rings)
-        count += std::count_if(coords.begin(), coords.end(), [&r](const Coordinate& x) {
+    for (const auto &r : rings)
+        count += std::count_if(coords.begin(), coords.end(), [&r](const Coordinate &x) {
             return r.first == x.first || r.second == x.second || (r.second - r.first) == (x.second - x.first);
         });
 
@@ -101,9 +99,10 @@ long ring_connected_heuristic(State& state, const Player& player)
     return count - 1;
 }
 
-long ring_controlled_heuristic(State& state, const Player& player)
-{
-    auto add_ply = [](decltype(State::board_map)& bmap, const pair<int, int> p, long& count) -> bool {
+long ring_controlled_heuristic(State &state) {
+    auto player = state.player;
+
+    auto add_ply = [](decltype(State::board_map) &bmap, const pair<int, int> p, long &count) -> bool {
         switch (bmap[p]) {
         case EMPTY:
             break;
@@ -121,7 +120,7 @@ long ring_controlled_heuristic(State& state, const Player& player)
     auto bmap = state.board_map;
     auto rings = state.get_player_rings();
     long count = 0;
-    for (const auto& coordinate : rings) {
+    for (const auto &coordinate : rings) {
         for (auto y = coordinate.second + 1; bmap.find(make_pair(coordinate.first, y)) != bmap.end(); ++y) {
             if (add_ply(bmap, make_pair(coordinate.first, y), count))
                 break;
@@ -155,9 +154,10 @@ long ring_controlled_heuristic(State& state, const Player& player)
     return count;
 }
 
-long ring_fuse_heuristic(State& state, const Player& player, long w1, long w2)
-{
-    auto add_ply = [](decltype(State::board_map)& bmap, const pair<int, int> p, long& connect_count, long& control_count) -> bool {
+long ring_fuse_heuristic(State &state, long w1, long w2) {
+    auto player = state.player;
+
+    auto add_ply = [](decltype(State::board_map) &bmap, const pair<int, int> p, long &connect_count, long &control_count) -> bool {
         switch (bmap[p]) {
         case EMPTY:
             ++control_count;
@@ -177,7 +177,7 @@ long ring_fuse_heuristic(State& state, const Player& player, long w1, long w2)
     auto rings = state.get_player_rings();
     long connect_count = 0;
     long control_count = 0;
-    for (const auto& coordinate : rings) {
+    for (const auto &coordinate : rings) {
         for (auto y = coordinate.second + 1; bmap.find(make_pair(coordinate.first, y)) != bmap.end(); ++y) {
             if (add_ply(bmap, make_pair(coordinate.first, y), connect_count, control_count))
                 break;
@@ -211,28 +211,28 @@ long ring_fuse_heuristic(State& state, const Player& player, long w1, long w2)
     return w1 * connect_count + w2 * control_count;
 }
 
-long ring_heuristic(const std::array<long, 3>& weights, State& state, const Player& player)
-{
+long ring_heuristic(const std::array<long, 3> &weights, State &state) {
+    auto player = state.player;
+
     long result = 0;
-    std::vector<long (*)(State & state, const Player& player)> heuristics({ ring_moves_heuristic, ring_connected_heuristic, ring_controlled_heuristic });
+    std::vector<long (*)(State & state)> heuristics({ring_moves_heuristic, ring_connected_heuristic, ring_controlled_heuristic});
 
     assert(weights.size() == heuristics.size());
 
     for (int i = 0; i != weights.size(); ++i) {
         if (weights[i] != 0)
-            result += weights[i] * heuristics[i](state, player);
+            result += weights[i] * heuristics[i](state);
     }
 
     return result;
 }
 
-long heuristic(State& state, int M)
-{
+long heuristic(State &state, int M) {
     auto player = state.player;
-    auto my_valh = value_heuristic(state, player, M);
-    auto my_markerh = marker_heuristic(state, player);
-    // auto my_ringh = 1 * ring_moves_heuristic(state, player) + ring_fuse_heuristic(state, player, 1, 1);
-    auto my_ringh = ring_connected_heuristic(state, player);
+    auto my_valh = value_heuristic(state, M);
+    auto my_markerh = marker_heuristic(state);
+    // auto my_ringh = 1 * ring_moves_heuristic(state) + ring_fuse_heuristic(state, 1, 1);
+    auto my_ringh = ring_connected_heuristic(state);
 
     Player other_player;
     if (player == WHITE)
@@ -240,10 +240,12 @@ long heuristic(State& state, int M)
     else
         other_player = WHITE;
 
-    auto other_valh = value_heuristic(state, other_player, M);
-    auto other_markerh = marker_heuristic(state, other_player);
-    auto other_ringh = ring_connected_heuristic(state, other_player);
-    // auto other_ringh = 1 * ring_moves_heuristic(state, other_player) + ring_fuse_heuristic(state, other_player, 1, 1);
+    state.player = other_player;
+
+    auto other_valh = value_heuristic(state, M);
+    auto other_markerh = marker_heuristic(state);
+    auto other_ringh = ring_connected_heuristic(state);
+    // auto other_ringh = 1 * ring_moves_heuristic(state) + ring_fuse_heuristic(state, 1, 1);
 
     auto valh = my_valh - other_valh;
     auto markerh = my_markerh - other_markerh;
