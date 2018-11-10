@@ -95,7 +95,7 @@ Move input_parse(string s)
         vecpos = 0;
         Move::MarkerRow m;
 
-        while (vec[vecpos] != "S" || vecpos != size) {
+        while (vec[vecpos] != "S" && vecpos != size) {
             Coordinate p1 = hex_to_ycoord(
                 make_pair(stoi(vec[vecpos + 1]), stoi(vec[vecpos + 2])));
             Coordinate p2 = hex_to_ycoord(
@@ -146,10 +146,11 @@ string output_parse(Move m)
 {
     string s;
     if (m.mode == Mode_M::P) {
+        Coordinate p1 = ycoord_to_hex(m.placing_pos);
         s = "P ";
-        s += to_string(m.placing_pos.first);
+        s += to_string(p1.first);
         s += " ";
-        s += to_string(m.placing_pos.second);
+        s += to_string(p1.second);
         return s;
     } else {
         while (m.initial_removal.size() != 0) {
@@ -1093,6 +1094,7 @@ int main()
     M = N;
     fin.clear();
     fin.ignore(1000, '\n');
+    get_board_map(N);
 
     State state(N);
     state.mode = Mode_S::P;
