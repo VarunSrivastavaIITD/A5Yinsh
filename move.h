@@ -7,17 +7,21 @@
 using namespace std;
 
 enum class Mode_M { P,
-            S };
+                    S };
+
+typedef pair<int, int> Coordinate;
 
 class Move {
   public:
     // typedefs
-    typedef pair<int, int> Coordinate;
 
     struct MarkerRow {
         Coordinate start;
         Coordinate end;
         Coordinate ring;
+
+        MarkerRow() = default;
+        MarkerRow(Coordinate, Coordinate, Coordinate);
     };
 
     // member variables
@@ -27,5 +31,8 @@ class Move {
     Coordinate placing_pos;
     Coordinate initial_pos;
     Coordinate final_pos;
+
+    Move();
+    Move(Coordinate, Coordinate);
 };
 #endif
