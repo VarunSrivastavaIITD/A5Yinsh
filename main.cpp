@@ -1193,6 +1193,8 @@ long alphabeta(State state, size_t depth, long alpha, long beta, size_t K, size_
 
 Move best(State state, size_t depth, size_t K, size_t M)
 {
+    if (state.mode == Mode_S::P)
+        depth = 1;
     Move bestmove;
     State newstate = state;
     auto bestvalue = numeric_limits<long>::min();
