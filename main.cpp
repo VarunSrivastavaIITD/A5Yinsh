@@ -12,9 +12,10 @@
 #include <string>
 #include <vector>
 
-State perform_move(const State &state, Move move, size_t M);
-std::vector<Move> get_all_moves(const State &state, size_t K, size_t M);
+State perform_move(const State& state, Move move, size_t M);
+std::vector<Move> get_all_moves(const State& state, size_t K, size_t M);
 long minimax_util(State state, int depth, size_t K, size_t M);
+long negascoututil(State state, int depth, long alpha, long beta, int K, int M);
 
 const Coordinate DUMMY_COORDINATE(10, 10);
 const int L = 3;
@@ -25,7 +26,8 @@ typedef bm_type::value_type bm_value_type;
 bm_type bm;
 
 template <typename Iterator>
-bool next_combination(const Iterator first, Iterator k, const Iterator last) {
+bool next_combination(const Iterator first, Iterator k, const Iterator last)
+{
     if ((first == last) || (first == k) || (last == k))
         return false;
     Iterator i1 = first;
@@ -59,15 +61,18 @@ bool next_combination(const Iterator first, Iterator k, const Iterator last) {
     return false;
 }
 
-pair<int, int> hex_to_ycoord(pair<size_t, size_t> p) {
+pair<int, int> hex_to_ycoord(pair<size_t, size_t> p)
+{
     return bm.left.at(p);
 }
 
-pair<size_t, size_t> ycoord_to_hex(pair<int, int> p) {
+pair<size_t, size_t> ycoord_to_hex(pair<int, int> p)
+{
     return bm.right.at(p);
 }
 
-Move input_parse(string s) {
+Move input_parse(string s)
+{
     Move result;
     int vecpos;
     int size;
@@ -75,7 +80,7 @@ Move input_parse(string s) {
     istringstream ss(s);
 
     copy(istream_iterator<string>(ss), istream_iterator<string>(),
-         back_inserter(vec));
+        back_inserter(vec));
     size = vec.size();
 
     if (vec[0] == "P") {
@@ -138,7 +143,8 @@ Move input_parse(string s) {
     return result;
 }
 
-string output_parse(Move m) {
+string output_parse(Move m)
+{
     string s;
     if (m.mode == Mode_M::P) {
         Coordinate p1 = ycoord_to_hex(m.placing_pos);
@@ -220,17 +226,18 @@ string output_parse(Move m) {
     return s;
 }
 
-State remove_toggle_combined(Coordinate p2, Coordinate p3, const State &state, int both_exclusive) {
+State remove_toggle_combined(Coordinate p2, Coordinate p3, const State& state, int both_exclusive)
+{
     State newstate = state;
 
-    auto flip = [](decltype(newstate.black_markers) &s, decltype(newstate.black_markers) &t, const decltype(newstate.black_markers)::value_type &e) {
+    auto flip = [](decltype(newstate.black_markers)& s, decltype(newstate.black_markers)& t, const decltype(newstate.black_markers)::value_type& e) {
         auto search = s.find(e);
         if (search != s.end())
             s.erase(search);
         t.insert(e);
     };
 
-    auto delete_from_set = [](decltype(newstate.black_markers) &s, const decltype(newstate.black_markers)::value_type &e) {
+    auto delete_from_set = [](decltype(newstate.black_markers)& s, const decltype(newstate.black_markers)::value_type& e) {
         auto search = s.find(e);
         if (search != s.end())
             s.erase(search);
@@ -399,7 +406,8 @@ State remove_toggle_combined(Coordinate p2, Coordinate p3, const State &state, i
     return newstate;
 }
 
-Move minimax(State state, int depth, size_t K, size_t M) {
+Move minimax(State state, int depth, size_t K, size_t M)
+{
     vector<Move> moves;
     State newstate = state;
     moves = get_all_moves(state, K, M);
@@ -416,7 +424,8 @@ Move minimax(State state, int depth, size_t K, size_t M) {
     return max_move;
 }
 
-long minimax_util(State state, int depth, size_t K, size_t M) {
+long minimax_util(State state, int depth, size_t K, size_t M)
+{
     vector<Move> moves;
     State newstate = state;
     moves = get_all_moves(state, K, M);
@@ -452,21 +461,22 @@ long minimax_util(State state, int depth, size_t K, size_t M) {
     return ans;
 }
 
-State perform_move(const State &state, Move move, size_t M) {
+State perform_move(const State& state, Move move, size_t M)
+{
     State newstate = state;
 
     auto delete_from_set =
-        [](decltype(newstate.black_markers) &s,
-           const decltype(newstate.black_markers)::value_type &e) {
+        [](decltype(newstate.black_markers)& s,
+            const decltype(newstate.black_markers)::value_type& e) {
             auto search = s.find(e);
             if (search != s.end())
                 s.erase(search);
         };
 
     auto update_from_map =
-        [](decltype(newstate.board_map) &s,
-           const decltype(newstate.board_map)::key_type &e,
-           const decltype(newstate.board_map)::mapped_type &f) {
+        [](decltype(newstate.board_map)& s,
+            const decltype(newstate.board_map)::key_type& e,
+            const decltype(newstate.board_map)::mapped_type& f) {
             auto search = s.find(e);
             if (search != s.end())
                 s[e] = f;
@@ -537,7 +547,8 @@ State perform_move(const State &state, Move move, size_t M) {
     return newstate;
 }
 
-std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 5) {
+std::deque<Coordinate> check_consecutive_markers(const State& state, size_t K = 5)
+{
     std::map<pair<int, int>, std::tuple<int, int, int>> marker_lines;
     const auto markers = state.get_player_markers();
     auto bmap = state.board_map;
@@ -546,7 +557,7 @@ std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 
     for (auto it = markers.cbegin(); it != markers.cend(); ++it)
         marker_lines[*it] = std::make_tuple(1, 1, 1);
 
-    for (const auto &coordinate : markers) {
+    for (const auto& coordinate : markers) {
 
         if (get<0>(marker_lines[coordinate]) == 1) {
             std::deque<Coordinate> line;
@@ -626,7 +637,8 @@ std::deque<Coordinate> check_consecutive_markers(const State &state, size_t K = 
     return std::deque<Coordinate>();
 }
 
-bool add_move(decltype(State::board_map) &bmap, const pair<int, int> p, vector<Move> &vec, const pair<int, int> coordinate, bool &found_marker, decltype(Move::initial_removal) mrow) {
+bool add_move(decltype(State::board_map)& bmap, const pair<int, int> p, vector<Move>& vec, const pair<int, int> coordinate, bool& found_marker, decltype(Move::initial_removal) mrow)
+{
     Move m;
     switch (bmap[p]) {
     case EMPTY:
@@ -651,7 +663,8 @@ bool add_move(decltype(State::board_map) &bmap, const pair<int, int> p, vector<M
     return false;
 }
 
-std::vector<Move> generate_pmode_moves(const State &state) {
+std::vector<Move> generate_pmode_moves(const State& state)
+{
     std::vector<Move> moves;
     Move move;
     for (auto it = state.board_map.begin(); it != state.board_map.end(); ++it) {
@@ -664,7 +677,8 @@ std::vector<Move> generate_pmode_moves(const State &state) {
     return moves;
 }
 
-std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
+std::vector<Move> get_all_moves(const State& state, size_t K, size_t M)
+{
     std::vector<Move> moves;
 
     if (state.mode == Mode_S::P) {
@@ -710,7 +724,7 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
             } while (next_combination(vec.begin(), vec.begin() + remove_rings, vec.end()));
 
             if (early_terminate) {
-                for (auto &m : moves)
+                for (auto& m : moves)
                     m.initial_pos = DUMMY_COORDINATE;
                 return moves;
             }
@@ -724,7 +738,7 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
     }
 
     // S phase
-    for (const auto &m : moves) {
+    for (const auto& m : moves) {
         bool found_marker = false;
         State newstate = state;
 
@@ -739,7 +753,7 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
         auto newrings = newstate.get_player_rings();
         auto newbmap = newstate.board_map;
 
-        for (const auto &coordinate : newrings) {
+        for (const auto& coordinate : newrings) {
             for (auto y = coordinate.second + 1; newbmap.find(make_pair(coordinate.first, y)) != newbmap.end(); ++y) {
                 if (add_move(newbmap, make_pair(coordinate.first, y), temp_moves, coordinate, found_marker, m.initial_removal))
                     break;
@@ -782,7 +796,7 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
     temp_moves.clear();
 
     // Final RS Phase
-    for (const auto &m : moves) {
+    for (const auto& m : moves) {
         State newstate = perform_move(state, m, M);
         newstate.player = state.player;
 
@@ -830,7 +844,8 @@ std::vector<Move> get_all_moves(const State &state, size_t K, size_t M) {
     return moves;
 }
 
-void get_board_map(size_t N) {
+void get_board_map(size_t N)
+{
     if (N == 5) {
         bm.insert(bm_value_type(make_pair(0, 0), make_pair(0, 0)));
         // hex 1
@@ -1066,20 +1081,152 @@ void get_board_map(size_t N) {
     }
 }
 
-bool is_game_over(const State &state, const size_t M) {
+bool is_game_over(const State& state, const size_t M)
+{
     if (state.mode != Mode_S::P) {
         const size_t L = 3;
         return state.black_rings.size() == (M - L) || state.white_rings.size() == (M - L);
     }
     return false;
 }
-int main() {
-    auto &fin = cin;
+
+Move negascout(State state, int depth, int K, int M)
+{
+    long bestvalue, value, beta2, alpha, beta;
+    vector<Move> moves;
+    Move bestmove;
+    State newstate = state;
+    bestvalue = numeric_limits<long>::min();
+    alpha = numeric_limits<long>::min();
+    beta = numeric_limits<long>::max();
+    beta2 = beta;
+    moves = get_all_moves(state, K, M);
+    for (auto it1 = moves.begin(); it1 != moves.end(); it1++) {
+        newstate = perform_move(state, *it1, M);
+        value = (negascoututil(newstate, depth - 1, -(beta2), -(alpha), K, M));
+
+        if ((value > alpha) && (value < beta) && (it1 != moves.begin()))
+            value = (negascoututil(newstate, depth - 1, -(beta), -(alpha), K, M));
+
+        if (value > bestvalue) {
+            bestvalue = value;
+            bestmove = *it1;
+        }
+
+        if (value > alpha)
+            alpha = value;
+
+        if (alpha >= beta)
+            break;
+
+        beta2 = alpha + 1;
+    }
+    return bestmove;
+}
+
+long negascoututil(State state, int depth, long alpha, long beta, int K, int M)
+{
+    long bestvalue, value, beta2;
+    vector<Move> moves;
+    State newstate = state;
+    long color = state.player == Player::WHITE ? 1 : -1;
+    if ((depth == 0) || (is_game_over(state, M))) {
+        // state.player = state.player == Player::WHITE ? Player::BLACK : Player::WHITE;
+        state.player = Player::WHITE;
+        return heuristic(state, M);
+    }
+    bestvalue = numeric_limits<long>::min();
+    beta2 = beta;
+    moves = get_all_moves(state, K, M);
+    for (auto it1 = moves.begin(); it1 != moves.end(); it1++) {
+        newstate = perform_move(state, *it1, M);
+        value = color * (negascoututil(newstate, depth - 1, -(beta2), -(alpha), K, M));
+        if ((value > alpha) && (value < beta) && (it1 != moves.begin()))
+            value = color * (negascoututil(newstate, depth - 1, -(beta), -(alpha), K, M));
+
+        if (value > bestvalue)
+            bestvalue = value;
+
+        if (value > alpha)
+            alpha = value;
+
+        if (alpha >= beta)
+            break;
+
+        beta2 = alpha + 1;
+    }
+    return bestvalue;
+}
+
+long alphabeta(State state, size_t depth, long alpha, long beta, size_t K, size_t M)
+{
+    if ((depth == 0) || (is_game_over(state, M))) {
+        state.player = Player::WHITE;
+        return heuristic(state, M);
+    }
+    auto moves = get_all_moves(state, K, M);
+
+    if (state.player == Player::WHITE) {
+        long value = numeric_limits<long>::min();
+
+        for (auto it = moves.begin(); it != moves.end(); it++) {
+            auto newstate = perform_move(state, *it, M);
+            value = std::max(value, alphabeta(newstate, depth - 1, alpha, beta, K, M));
+            alpha = std::max(alpha, value);
+            if (alpha >= beta)
+                break;
+        }
+        return value;
+    } else {
+        long value = numeric_limits<long>::max();
+
+        for (auto it = moves.begin(); it != moves.end(); it++) {
+            auto newstate = perform_move(state, *it, M);
+            value = std::min(value, alphabeta(newstate, depth - 1, alpha, beta, K, M));
+            beta = std::min(beta, value);
+            if (alpha >= beta)
+                break;
+        }
+        return value;
+    }
+}
+
+Move best(State state, size_t depth, size_t K, size_t M)
+{
+    Move bestmove;
+    State newstate = state;
+    auto bestvalue = numeric_limits<long>::min();
+    auto alpha = numeric_limits<long>::min();
+    auto beta = numeric_limits<long>::max();
+    auto moves = get_all_moves(state, K, M);
+    // std::vector<std::pair<long, Move>> est_values;
+
+    // for (auto m : moves) {
+    //     est_values.emplace_back(heuristic(perform_move(state, m, M), M), m);
+    // }
+
+    // std::sort(est_values.begin(), est_values.end(), [&](std::pair<long, Move> m1, std::pair<long, Move> m2) {return  m1.first > m2.first; });
+
+    for (auto it1 = moves.begin(); it1 != moves.end(); it1++) {
+        newstate = perform_move(state, *it1, M);
+        auto value = alphabeta(newstate, depth - 1, alpha, beta, K, M);
+
+        if (value > bestvalue) {
+            bestvalue = value;
+            bestmove = *it1;
+        }
+    }
+    return bestmove;
+}
+
+int main()
+{
+    auto& fin = cin;
     size_t N, M, K;
     int player_id, time_limit_in_seconds;
     string input_move;
     string output_move;
-    int depth = 1;
+    int depth = 3;
     auto begin = chrono::high_resolution_clock::now();
     auto current = chrono::high_resolution_clock::now();
 
@@ -1102,7 +1249,7 @@ int main() {
             auto move = input_parse(input_move);
             state = perform_move(state, move, M);
 
-            auto best_move = minimax(state, depth, K, M);
+            auto best_move = best(state, depth, K, M);
             state = perform_move(state, best_move, M);
             output_move = output_parse(best_move);
             cout << output_move << endl;
@@ -1114,7 +1261,7 @@ int main() {
         state.player = WHITE;
         auto seconds = chrono::duration_cast<chrono::seconds>(current - begin).count();
 
-        auto best_move = minimax(state, depth, K, M);
+        auto best_move = best(state, depth, K, M);
         state = perform_move(state, best_move, M);
         output_move = output_parse(best_move);
         cout << output_move << endl;
@@ -1124,7 +1271,7 @@ int main() {
             auto move = input_parse(input_move);
             state = perform_move(state, move, M);
 
-            auto best_move = minimax(state, depth, K, M);
+            auto best_move = best(state, depth, K, M);
             state = perform_move(state, best_move, M);
             output_move = output_parse(best_move);
             cout << output_move << endl;
