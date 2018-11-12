@@ -1165,9 +1165,21 @@ long alphabeta(State state, size_t depth, long alpha, long beta, size_t K, size_
         return heuristic(state, M);
     }
     auto moves = get_all_moves(state, K, M);
+    // int i, swapped;
+    // Move temp;
 
     if (state.player == Player::WHITE) {
         long value = numeric_limits<long>::min();
+
+        // swapped = 0;
+        // for (i = 0; i < moves.size(); i++) {
+        //     if (((!moves[i].initial_removal.empty()) || (!moves[i].final_removal.empty())) && swapped != i) {
+        //         temp = moves[swapped];
+        //         moves[swapped] = moves[i];
+        //         moves[i] = temp;
+        //         swapped++;
+        //     }
+        // }
 
         for (auto it = moves.begin(); it != moves.end(); it++) {
             auto newstate = perform_move(state, *it, M);
@@ -1179,6 +1191,16 @@ long alphabeta(State state, size_t depth, long alpha, long beta, size_t K, size_
         return value;
     } else {
         long value = numeric_limits<long>::max();
+
+        // swapped = moves.size() - 1;
+        // for (i = 0; i < moves.size(); i++) {
+        //     if (((!moves[i].initial_removal.empty()) || (!moves[i].final_removal.empty())) && swapped != i) {
+        //         temp = moves[swapped];
+        //         moves[swapped] = moves[i];
+        //         moves[i] = temp;
+        //         swapped--;
+        //     }
+        // }
 
         for (auto it = moves.begin(); it != moves.end(); it++) {
             auto newstate = perform_move(state, *it, M);
@@ -1208,6 +1230,16 @@ Move best(State state, size_t depth, size_t K, size_t M)
     // }
 
     // std::sort(est_values.begin(), est_values.end(), [&](std::pair<long, Move> m1, std::pair<long, Move> m2) {return  m1.first > m2.first; });
+    // int i, swapped = 0;
+    // Move temp;
+    // for (i = 0; i < moves.size(); i++) {
+    //     if (((!moves[i].initial_removal.empty()) || (!moves[i].final_removal.empty())) && swapped != i) {
+    //         temp = moves[swapped];
+    //         moves[swapped] = moves[i];
+    //         moves[i] = temp;
+    //         swapped++;
+    //     }
+    // }
 
     for (auto it1 = moves.begin(); it1 != moves.end(); it1++) {
         newstate = perform_move(state, *it1, M);
