@@ -1228,13 +1228,20 @@ int main()
     int player_id, time_limit_in_seconds;
     string input_move;
     string output_move;
-    int depth = 3;
+    int depth = 2;
+
     auto begin = chrono::high_resolution_clock::now();
     auto current = chrono::high_resolution_clock::now();
 
     // TODO: K
     fin >> player_id >> N >> time_limit_in_seconds >> K;
     M = N;
+
+    if (N == 5)
+        depth = 3;
+    else
+        depth = 2;
+
     fin.clear();
     fin.ignore(1000, '\n');
     get_board_map(N);
